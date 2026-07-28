@@ -288,7 +288,7 @@
       </div>
       <div class="alert-box">
         <h3>Alerta de bajo desempeño <span class="badge" id="alert-count">0</span></h3>
-        <p class="subtitle">Notas con 0 a 15 vistas en la semana. La base no guarda fecha de publicación por nota — se muestra la semana del reporte en su lugar.</p>
+        <p class="subtitle">Notas con 0 a 15 vistas en la semana. Se muestra la fecha real de publicación cuando está disponible; si no, la semana del reporte.</p>
         <div id="alert-table-wrap"></div>
       </div>
     </div>
@@ -513,6 +513,15 @@ DATA.notas_semana_actual.forEach((n, i) => {
 
 document.getElementById('alert-count').textContent = DATA.alertas_semana_actual.length;
 const alertWrap = document.getElementById('alert-table-wrap');
+
+function fmtFechaPublicacion(n) {
+  if (n.fecha_publicacion) {
+    const d = new Date(n.fecha_publicacion + 'T00:00:00');
+    if (!isNaN(d)) return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  return DATA.semana_mas_reciente_label + ' *';
+}
+
 if (DATA.alertas_semana_actual.length === 0) {
   alertWrap.innerHTML = '<p class="empty-note">Ninguna nota de la semana cayó entre 0 y 15 vistas.</p>';
 } else {
@@ -520,14 +529,15 @@ if (DATA.alertas_semana_actual.length === 0) {
     <tr>
       <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
       <td class="num">${fmtInt(n.vistas)}</td>
-      <td class="num">${DATA.semana_mas_reciente_label}</td>
+      <td class="num">${fmtFechaPublicacion(n)}</td>
     </tr>`).join('');
   alertWrap.innerHTML = `
     <div class="scroll-table" style="max-height:340px">
       <table class="ranking">
-        <thead><tr><th>Nota</th><th style="text-align:right">Vistas</th><th style="text-align:right">Semana</th></tr></thead>
+        <thead><tr><th>Nota</th><th style="text-align:right">Vistas</th><th style="text-align:right">Publicación</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
+      <p class="empty-note" style="padding:6px 8px 0">* sin fecha de publicación real disponible — se muestra la semana del reporte</p>
     </div>`;
 }
 

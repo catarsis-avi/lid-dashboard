@@ -47,7 +47,8 @@ def leer_notas_por_semana(conn):
     cur = conn.cursor()
     cur.execute("""
         SELECT semana_inicio, titulo, url, vistas, tiempo_lectura_promedio,
-               es_landing_page, sesiones_como_landing, alerta_bajo_desempeno
+               es_landing_page, sesiones_como_landing, alerta_bajo_desempeno,
+               fecha_publicacion
         FROM metricas_notas
     """)
     por_semana = {}
@@ -57,6 +58,7 @@ def leer_notas_por_semana(conn):
             "titulo": row[1], "url": row[2], "vistas": row[3],
             "tiempo_lectura_promedio": row[4], "es_landing_page": row[5],
             "sesiones_como_landing": row[6], "alerta_bajo_desempeno": row[7],
+            "fecha_publicacion": row[8],
         })
     return por_semana
 

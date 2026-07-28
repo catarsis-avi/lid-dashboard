@@ -102,6 +102,25 @@
     color: var(--ink-muted);
     margin: 0 0 16px;
   }
+  .section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .mes-select-wrap { display: none; align-items: center; gap: 6px; margin-bottom: 12px; }
+  .mes-select-wrap.visible { display: flex; }
+  .mes-select-wrap label { font-size: 12px; color: var(--ink-secondary); font-weight: 600; }
+  .mes-select-wrap select {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+  }
   .chart-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -137,6 +156,10 @@
     padding: 6px 8px;
     font-weight: 600;
   }
+  table.ranking th.sortable { cursor: pointer; user-select: none; }
+  table.ranking th.sortable:hover { color: var(--lid-azul); }
+  table.ranking th.sort-active { color: var(--lid-azul); }
+  table.ranking th.sort-active::after { content: ' \25BC'; font-size: 8px; }
   table.ranking td {
     padding: 7px 8px;
     border-bottom: 1px solid var(--grid);
@@ -231,6 +254,63 @@
     border-radius: 2px;
     margin-right: 4px;
   }
+
+  /* ---- icono de ayuda con tooltip (CSS-only, hover + foco por teclado) ---- */
+  .help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ink-muted);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: help;
+    margin-left: 5px;
+    position: relative;
+    vertical-align: middle;
+    outline: none;
+  }
+  .help-icon .tip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 135%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    padding: 9px 11px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    line-height: 1.45;
+    width: 250px;
+    text-align: left;
+    z-index: 30;
+    transition: opacity 0.12s ease;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+  }
+  .help-icon .tip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--ink);
+  }
+  .help-icon:hover .tip,
+  .help-icon:focus .tip { visibility: visible; opacity: 1; }
+  th .help-icon .tip {
+    text-transform: none;
+    font-weight: 400;
+  }
 </style>
 </head>
 <body>
@@ -254,11 +334,16 @@
     <p class="subtitle" id="salud-subtitle"></p>
     <div class="chart-grid">
       <div class="chart-card">
-        <h3>Sesiones totales</h3>
+        <h3>Sesiones totales
+          <span class="help-icon" tabindex="0">?<span class="tip">Un período de actividad continua de un visitante en el sitio. Empieza cuando entra y termina tras 30 minutos de inactividad, un cambio de fuente de tráfico, o al cruzar la medianoche. Una persona puede ver varias notas en la misma sesión.</span></span>
+        </h3>
         <div class="canvas-wrap"><canvas id="chart-sesiones"></canvas></div>
       </div>
       <div class="chart-card">
-        <h3>Engagement rate y desglose de canal</h3>
+        <h3>Engagement rate
+          <span class="help-icon" tabindex="0">?<span class="tip">Porcentaje de sesiones que tuvieron alguna señal real de interés: duraron más de 10 segundos, generaron más de una vista, o incluyeron una conversión. Un número bajo indica que la mayoría de las visitas entran y se van casi de inmediato.</span></span>
+          y desglose de canal
+        </h3>
         <div class="canvas-wrap"><canvas id="chart-canal"></canvas></div>
       </div>
       <div class="chart-card">
@@ -266,7 +351,11 @@
         <div class="canvas-wrap"><canvas id="chart-dispositivo"></canvas></div>
       </div>
       <div class="chart-card">
-        <h3>Usuarios nuevos vs. recurrentes</h3>
+        <h3>Usuarios nuevos
+          <span class="help-icon" tabindex="0">?<span class="tip">Visitantes sin registro previo del sitio en su navegador, es su primera visita detectada.</span></span>
+          vs. recurrentes
+          <span class="help-icon" tabindex="0">?<span class="tip">Visitantes que ya habían entrado al sitio antes, sin importar hace cuánto tiempo.</span></span>
+        </h3>
         <div class="canvas-wrap"><canvas id="chart-usuarios"></canvas></div>
       </div>
     </div>
@@ -275,12 +364,25 @@
   <section class="block">
     <h2>Desempeño por nota</h2>
     <p class="subtitle" id="notas-subtitle"></p>
+    <div class="mes-select-wrap" id="mes-select-wrap">
+      <label for="mes-select">Mes:</label>
+      <select id="mes-select"></select>
+    </div>
     <div class="two-col">
       <div>
         <div class="scroll-table">
           <table class="ranking" id="tabla-ranking">
             <thead>
-              <tr><th>#</th><th>Nota</th><th style="text-align:right">Vistas</th><th style="text-align:right">Tiempo lectura</th></tr>
+              <tr>
+                <th>#</th>
+                <th>Nota</th>
+                <th class="sortable sort-active" style="text-align:right" data-sort="vistas">Vistas</th>
+                <th style="text-align:right">Tiempo lectura</th>
+                <th class="sortable" style="text-align:right" data-sort="sesiones_como_landing">
+                  Sesiones como landing
+                  <span class="help-icon" tabindex="0">?<span class="tip">Cuántas sesiones empezaron en esta nota, a diferencia de vistas totales, que cuenta toda carga de la página sin importar si fue la entrada a la sesión o no.</span></span>
+                </th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -288,21 +390,10 @@
       </div>
       <div class="alert-box">
         <h3>Alerta de bajo desempeño <span class="badge" id="alert-count">0</span></h3>
-        <p class="subtitle">Notas con 0 a 15 vistas en la semana. Se muestra la fecha real de publicación cuando está disponible; si no, la semana del reporte.</p>
+        <p class="subtitle">Notas con 0 a 15 vistas en la semana más reciente. Se muestra la fecha real de publicación cuando está disponible; si no, la semana del reporte.</p>
         <div id="alert-table-wrap"></div>
       </div>
     </div>
-  </section>
-
-  <section class="block">
-    <h2>Landing pages</h2>
-    <p class="subtitle" id="landing-subtitle"></p>
-    <table class="ranking" id="tabla-landing">
-      <thead>
-        <tr><th>#</th><th>Nota</th><th style="text-align:right">Sesiones como landing</th><th style="text-align:right">Vistas totales</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
   </section>
 
   <footer class="foot">Generado automáticamente desde lid_metricas.db — reporte_lid_ga4.py</footer>
@@ -311,13 +402,14 @@
 <script>
 const DATA = __DASHBOARD_DATA__;
 
-const fmtInt = n => Math.round(n).toLocaleString('es-CL');
+const fmtInt = n => Math.round(n || 0).toLocaleString('es-CL');
 const fmtPct = n => (n * 100).toFixed(1) + '%';
 const fmtTiempo = s => {
   s = Math.round(s || 0);
   const m = Math.floor(s / 60), r = s % 60;
   return s > 0 ? `${m}:${String(r).padStart(2, '0')}` : '—';
 };
+const fmtLanding = n => (n && n > 0) ? fmtInt(n) : '—';
 
 document.getElementById('header-meta').textContent =
   `Semana más reciente: ${DATA.semana_mas_reciente_label} – ${DATA.semana_mas_reciente_fin_label} · generado ${DATA.generado}`;
@@ -370,8 +462,7 @@ function destruirCharts() {
   Object.values(charts).forEach(c => c && c.destroy());
 }
 
-function render(vista) {
-  vistaActual = vista;
+function renderSaludSitio(vista) {
   const s = seriesDe(vista);
   destruirCharts();
 
@@ -482,6 +573,78 @@ function render(vista) {
   });
 }
 
+// ---------- Seccion 2: desempeño por nota (tabla unificada con landing) ----------
+
+const mesSelectWrap = document.getElementById('mes-select-wrap');
+const mesSelect = document.getElementById('mes-select');
+let tablaSortKey = 'vistas';
+
+DATA.meses.forEach(m => {
+  const opt = document.createElement('option');
+  opt.value = m.mes;
+  opt.textContent = m.mes_label_largo;
+  mesSelect.appendChild(opt);
+});
+mesSelect.value = DATA.meses[DATA.meses.length - 1].mes;
+
+function notasFuente() {
+  if (vistaActual === 'semanal') {
+    return {
+      filas: DATA.notas_semana_actual,
+      resumen: `Semana del ${DATA.semana_mas_reciente_label} al ${DATA.semana_mas_reciente_fin_label} — ${DATA.notas_semana_actual.length} notas`,
+    };
+  }
+  const mesElegido = DATA.meses.find(m => m.mes === mesSelect.value) || DATA.meses[DATA.meses.length - 1];
+  const filas = DATA.notas_por_mes[mesElegido.mes] || [];
+  return {
+    filas,
+    resumen: `${mesElegido.mes_label_largo} — top ${filas.length} notas por vistas (agregado de ${mesElegido.n_semanas} semana${mesElegido.n_semanas === 1 ? '' : 's'})`,
+  };
+}
+
+function renderTablaNotas() {
+  const { filas, resumen } = notasFuente();
+  document.getElementById('notas-subtitle').textContent = resumen;
+
+  const ordenadas = [...filas].sort((a, b) => (b[tablaSortKey] || 0) - (a[tablaSortKey] || 0));
+  const maxVistas = Math.max(...ordenadas.map(n => n.vistas), 1);
+
+  document.querySelectorAll('#tabla-ranking th.sortable').forEach(th => {
+    th.classList.toggle('sort-active', th.dataset.sort === tablaSortKey);
+  });
+
+  const tbody = document.querySelector('#tabla-ranking tbody');
+  tbody.innerHTML = '';
+  ordenadas.forEach((n, i) => {
+    const pct = Math.max(4, Math.round((n.vistas / maxVistas) * 100));
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="num">${i + 1}</td>
+      <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
+      <td class="num"><div class="bar-cell"><div class="bar" style="width:${pct}px"></div><span class="val">${fmtInt(n.vistas)}</span></div></td>
+      <td class="num">${fmtTiempo(n.tiempo_lectura_promedio)}</td>
+      <td class="num">${fmtLanding(n.sesiones_como_landing)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.querySelectorAll('#tabla-ranking th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    tablaSortKey = th.dataset.sort;
+    renderTablaNotas();
+  });
+});
+
+mesSelect.addEventListener('change', renderTablaNotas);
+
+function render(vista) {
+  vistaActual = vista;
+  renderSaludSitio(vista);
+  mesSelectWrap.classList.toggle('visible', vista === 'mensual');
+  renderTablaNotas();
+}
+
 document.getElementById('view-toggle').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-view]');
   if (!btn) return;
@@ -492,24 +655,7 @@ document.getElementById('view-toggle').addEventListener('click', (e) => {
 
 render('semanal');
 
-// ---------- Seccion 2: desempeño por nota (siempre semana actual) ----------
-
-document.getElementById('notas-subtitle').textContent =
-  `Semana del ${DATA.semana_mas_reciente_label} al ${DATA.semana_mas_reciente_fin_label} — ${DATA.notas_semana_actual.length} notas`;
-
-const maxVistas = Math.max(...DATA.notas_semana_actual.map(n => n.vistas), 1);
-const tbodyRanking = document.querySelector('#tabla-ranking tbody');
-DATA.notas_semana_actual.forEach((n, i) => {
-  const tr = document.createElement('tr');
-  const pct = Math.max(4, Math.round((n.vistas / maxVistas) * 100));
-  tr.innerHTML = `
-    <td class="num">${i + 1}</td>
-    <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
-    <td class="num"><div class="bar-cell"><div class="bar" style="width:${pct}px"></div><span class="val">${fmtInt(n.vistas)}</span></div></td>
-    <td class="num">${fmtTiempo(n.tiempo_lectura_promedio)}</td>
-  `;
-  tbodyRanking.appendChild(tr);
-});
+// ---------- Alerta de bajo desempeño (siempre semana mas reciente) ----------
 
 document.getElementById('alert-count').textContent = DATA.alertas_semana_actual.length;
 const alertWrap = document.getElementById('alert-table-wrap');
@@ -539,27 +685,6 @@ if (DATA.alertas_semana_actual.length === 0) {
       </table>
       <p class="empty-note" style="padding:6px 8px 0">* sin fecha de publicación real disponible — se muestra la semana del reporte</p>
     </div>`;
-}
-
-// ---------- Seccion 3: landing pages (siempre semana actual) ----------
-
-document.getElementById('landing-subtitle').textContent =
-  `Semana del ${DATA.semana_mas_reciente_label} al ${DATA.semana_mas_reciente_fin_label} — ${DATA.landing_semana_actual.length} notas identificadas como landing page`;
-
-const tbodyLanding = document.querySelector('#tabla-landing tbody');
-if (DATA.landing_semana_actual.length === 0) {
-  tbodyLanding.innerHTML = '<tr><td colspan="4" class="empty-note">Sin datos de landing page para esta semana.</td></tr>';
-} else {
-  DATA.landing_semana_actual.forEach((n, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="num">${i + 1}</td>
-      <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
-      <td class="num">${fmtInt(n.sesiones_como_landing)}</td>
-      <td class="num">${fmtInt(n.vistas)}</td>
-    `;
-    tbodyLanding.appendChild(tr);
-  });
 }
 </script>
 </body>

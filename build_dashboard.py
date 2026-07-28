@@ -125,6 +125,54 @@ def agregar_mensual(semanas, notas_por_semana):
     return resultado
 
 
+def agregar_notas_por_mes(semanas, notas_por_semana, top_n=100):
+    """
+    Para cada mes calendario, agrega las notas de todas sus semanas:
+    vistas sumadas, tiempo de lectura promedio ponderado por vistas de
+    cada semana, y sesiones_como_landing sumadas. Dedup por titulo (una
+    nota que aparece en varias semanas del mes no se cuenta dos veces).
+    Devuelve {mes: [ {titulo, url, vistas, tiempo_lectura_promedio,
+    sesiones_como_landing}, ... ]} con el top_n por vistas.
+    """
+    acumulados = {}
+    for fila in semanas:
+        anio, mes = mes_de_semana(fila["semana_inicio"], fila["semana_fin"])
+        clave = f"{anio:04d}-{mes:02d}"
+        bucket = acumulados.setdefault(clave, {})
+        for nota in notas_por_semana.get(fila["semana_inicio"], []):
+            titulo = nota["titulo"]
+            vistas = nota["vistas"] or 0
+            entrada = bucket.setdefault(titulo, {
+                "titulo": titulo, "url": nota["url"] or "",
+                "vistas": 0, "_suma_tiempo_ponderado": 0.0,
+                "sesiones_como_landing": 0.0,
+            })
+            entrada["vistas"] += vistas
+            entrada["_suma_tiempo_ponderado"] += (nota["tiempo_lectura_promedio"] or 0.0) * vistas
+            entrada["sesiones_como_landing"] += nota["sesiones_como_landing"] or 0
+            if not entrada["url"] and nota["url"]:
+                entrada["url"] = nota["url"]
+
+    resultado = {}
+    for clave, bucket in acumulados.items():
+        filas = []
+        for entrada in bucket.values():
+            tiempo = (
+                entrada["_suma_tiempo_ponderado"] / entrada["vistas"]
+                if entrada["vistas"] > 0 else 0.0
+            )
+            filas.append({
+                "titulo": entrada["titulo"],
+                "url": entrada["url"],
+                "vistas": entrada["vistas"],
+                "tiempo_lectura_promedio": tiempo,
+                "sesiones_como_landing": entrada["sesiones_como_landing"],
+            })
+        filas.sort(key=lambda f: f["vistas"], reverse=True)
+        resultado[clave] = filas[:top_n]
+    return resultado
+
+
 def formatear_semana_label(fecha_inicio_str):
     d = datetime.strptime(fecha_inicio_str, "%Y-%m-%d")
     return f"{d.day} {MESES_CORTO[d.month]}"
@@ -140,6 +188,7 @@ def preparar_datos():
         fila["semana_label"] = formatear_semana_label(fila["semana_inicio"])
 
     meses = agregar_mensual(semanas, notas_por_semana)
+    notas_por_mes = agregar_notas_por_mes(semanas, notas_por_semana)
 
     semana_mas_reciente = semanas[-1]["semana_inicio"]
     notas_semana_actual = sorted(
@@ -150,20 +199,16 @@ def preparar_datos():
         [n for n in notas_semana_actual if n["alerta_bajo_desempeno"]],
         key=lambda n: n["vistas"],
     )
-    landing_semana_actual = sorted(
-        [n for n in notas_semana_actual if n["es_landing_page"] and n["sesiones_como_landing"]],
-        key=lambda n: n["sesiones_como_landing"], reverse=True,
-    )
 
     return {
         "semanas": semanas,
         "meses": meses,
+        "notas_por_mes": notas_por_mes,
         "semana_mas_reciente": semana_mas_reciente,
         "semana_mas_reciente_label": formatear_semana_label(semana_mas_reciente),
         "semana_mas_reciente_fin_label": formatear_semana_label(semanas[-1]["semana_fin"]),
         "notas_semana_actual": notas_semana_actual,
         "alertas_semana_actual": alertas_semana_actual,
-        "landing_semana_actual": landing_semana_actual,
         "generado": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }
 
@@ -182,7 +227,7 @@ def main():
         f.write(html)
     print(f"OK: index.html generado con {len(datos['semanas'])} semanas y {len(datos['meses'])} meses.")
     print(f"Semana mas reciente: {datos['semana_mas_reciente']} ({len(datos['notas_semana_actual'])} notas, "
-          f"{len(datos['alertas_semana_actual'])} en alerta, {len(datos['landing_semana_actual'])} landing pages)")
+          f"{len(datos['alertas_semana_actual'])} en alerta)")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Izquierda Diario Chile — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --lid-azul: #003874;
+    --lid-rojo: #9f334e;
+    --surface: #ffffff;
+    --page: #f7f6f4;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e6e4dd;
+    --border: rgba(11,11,11,0.10);
+    --cat-1: #2a78d6;
+    --cat-2: #eb6834;
+    --cat-3: #1baf7a;
+    --cat-4: #eda100;
+    --cat-5: #e87ba4;
+    --alert-bg: #fdf1ee;
+    --alert-border: #e8b9a8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header.top {
+    background: var(--lid-azul);
+    color: #fff;
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header.top .brand {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cat-4);
+    font-weight: 700;
+  }
+  header.top h1 {
+    margin: 2px 0 0;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  header.top .meta {
+    font-size: 12px;
+    color: #cdd8e6;
+  }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+  }
+  .view-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 20px;
+  }
+  .view-toggle button {
+    border: none;
+    background: transparent;
+    padding: 7px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .view-toggle button.active {
+    background: var(--lid-azul);
+    color: #fff;
+  }
+  section.block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px 24px;
+    margin-bottom: 24px;
+  }
+  section.block h2 {
+    font-size: 15px;
+    margin: 0 0 2px;
+    color: var(--lid-azul);
+  }
+  section.block .subtitle {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin: 0 0 16px;
+  }
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .chart-card {
+    border: 1px solid var(--grid);
+    border-radius: 8px;
+    padding: 14px 16px 8px;
+  }
+  .chart-card h3 {
+    font-size: 13px;
+    margin: 0 0 10px;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .chart-card .canvas-wrap {
+    position: relative;
+    height: 230px;
+  }
+  table.ranking {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.ranking th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--grid);
+    padding: 6px 8px;
+    font-weight: 600;
+  }
+  table.ranking td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--grid);
+    vertical-align: middle;
+  }
+  table.ranking tr:last-child td { border-bottom: none; }
+  table.ranking td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.ranking td.titulo { max-width: 480px; }
+  table.ranking td.titulo a { color: var(--ink); text-decoration: none; }
+  table.ranking td.titulo a:hover { text-decoration: underline; color: var(--lid-azul); }
+  .bar-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .bar-cell .bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--lid-azul);
+  }
+  .bar-cell .val { min-width: 52px; text-align: right; }
+  .scroll-table {
+    max-height: 520px;
+    overflow-y: auto;
+    border: 1px solid var(--grid);
+    border-radius: 8px;
+  }
+  .scroll-table table.ranking th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .alert-box {
+    background: var(--alert-bg);
+    border: 1px solid var(--alert-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .alert-box h3 {
+    font-size: 13px;
+    margin: 0 0 4px;
+    color: var(--lid-rojo);
+  }
+  .alert-box .subtitle {
+    font-size: 11.5px;
+    color: var(--ink-secondary);
+    margin: 0 0 10px;
+  }
+  .alert-box table.ranking td.titulo a:hover { color: var(--lid-rojo); }
+  .badge {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--lid-rojo);
+    color: #fff;
+    margin-left: 6px;
+  }
+  .empty-note {
+    font-size: 12px;
+    color: var(--ink-muted);
+    font-style: italic;
+    padding: 10px 0;
+  }
+  footer.foot {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-muted);
+    padding: 20px 0 40px;
+  }
+  .legend-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--ink-secondary);
+    margin-top: 8px;
+  }
+  .legend-row .dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 2px;
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <div class="brand">La Izquierda Diario Chile</div>
+    <h1>Dashboard de rendimiento</h1>
+  </div>
+  <div class="meta" id="header-meta"></div>
+</header>
+
+<main>
+  <div class="view-toggle" id="view-toggle">
+    <button data-view="semanal" class="active">Semanal</button>
+    <button data-view="mensual">Mensual</button>
+  </div>
+
+  <section class="block">
+    <h2>Salud general del sitio</h2>
+    <p class="subtitle" id="salud-subtitle"></p>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Sesiones totales</h3>
+        <div class="canvas-wrap"><canvas id="chart-sesiones"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Engagement rate y desglose de canal</h3>
+        <div class="canvas-wrap"><canvas id="chart-canal"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Mobile vs. desktop</h3>
+        <div class="canvas-wrap"><canvas id="chart-dispositivo"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Usuarios nuevos vs. recurrentes</h3>
+        <div class="canvas-wrap"><canvas id="chart-usuarios"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Desempeño por nota</h2>
+    <p class="subtitle" id="notas-subtitle"></p>
+    <div class="two-col">
+      <div>
+        <div class="scroll-table">
+          <table class="ranking" id="tabla-ranking">
+            <thead>
+              <tr><th>#</th><th>Nota</th><th style="text-align:right">Vistas</th><th style="text-align:right">Tiempo lectura</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="alert-box">
+        <h3>Alerta de bajo desempeño <span class="badge" id="alert-count">0</span></h3>
+        <p class="subtitle">Notas con 0 a 15 vistas en la semana. La base no guarda fecha de publicación por nota — se muestra la semana del reporte en su lugar.</p>
+        <div id="alert-table-wrap"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Landing pages</h2>
+    <p class="subtitle" id="landing-subtitle"></p>
+    <table class="ranking" id="tabla-landing">
+      <thead>
+        <tr><th>#</th><th>Nota</th><th style="text-align:right">Sesiones como landing</th><th style="text-align:right">Vistas totales</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <footer class="foot">Generado automáticamente desde lid_metricas.db — reporte_lid_ga4.py</footer>
+</main>
+
+<script>
+const DATA = __DASHBOARD_DATA__;
+
+const fmtInt = n => Math.round(n).toLocaleString('es-CL');
+const fmtPct = n => (n * 100).toFixed(1) + '%';
+const fmtTiempo = s => {
+  s = Math.round(s || 0);
+  const m = Math.floor(s / 60), r = s % 60;
+  return s > 0 ? `${m}:${String(r).padStart(2, '0')}` : '—';
+};
+
+document.getElementById('header-meta').textContent =
+  `Semana más reciente: ${DATA.semana_mas_reciente_label} – ${DATA.semana_mas_reciente_fin_label} · generado ${DATA.generado}`;
+
+// ---------- Seccion 1: salud del sitio (semanal / mensual) ----------
+
+let vistaActual = 'semanal';
+const charts = {};
+
+function seriesDe(vista) {
+  if (vista === 'semanal') {
+    return {
+      labels: DATA.semanas.map(s => s.semana_label),
+      sesiones: DATA.semanas.map(s => s.sesiones_totales),
+      engagement: DATA.semanas.map(s => s.engagement_rate),
+      directo: DATA.semanas.map(s => s.pct_directo),
+      organico: DATA.semanas.map(s => s.pct_organico),
+      social: DATA.semanas.map(s => s.pct_social),
+      referral: DATA.semanas.map(s => s.pct_referral),
+      email: DATA.semanas.map(s => s.pct_email),
+      mobile: DATA.semanas.map(s => s.pct_mobile),
+      desktop: DATA.semanas.map(s => s.pct_desktop),
+      nuevos: DATA.semanas.map(s => s.usuarios_nuevos),
+      recurrentes: DATA.semanas.map(s => s.usuarios_recurrentes),
+    };
+  }
+  return {
+    labels: DATA.meses.map(m => m.mes_label),
+    sesiones: DATA.meses.map(m => m.sesiones_totales),
+    engagement: DATA.meses.map(m => m.engagement_rate),
+    directo: DATA.meses.map(m => m.pct_directo),
+    organico: DATA.meses.map(m => m.pct_organico),
+    social: DATA.meses.map(m => m.pct_social),
+    referral: DATA.meses.map(m => m.pct_referral),
+    email: DATA.meses.map(m => m.pct_email),
+    mobile: DATA.meses.map(m => m.pct_mobile),
+    desktop: DATA.meses.map(m => m.pct_desktop),
+    nuevos: DATA.meses.map(m => m.usuarios_nuevos),
+    recurrentes: DATA.meses.map(m => m.usuarios_recurrentes),
+  };
+}
+
+const ejeComun = {
+  grid: { color: '#e6e4dd', drawTicks: false },
+  ticks: { color: '#898781', font: { size: 10 }, autoSkip: true, maxTicksLimit: 12, maxRotation: 0 },
+  border: { color: '#c3c2b7' },
+};
+
+function destruirCharts() {
+  Object.values(charts).forEach(c => c && c.destroy());
+}
+
+function render(vista) {
+  vistaActual = vista;
+  const s = seriesDe(vista);
+  destruirCharts();
+
+  document.getElementById('salud-subtitle').textContent = vista === 'semanal'
+    ? `${DATA.semanas.length} semanas, del ${DATA.semanas[0].semana_label} al ${DATA.semana_mas_reciente_label}`
+    : `${DATA.meses.length} meses agregados a partir de las semanas del histórico`;
+
+  charts.sesiones = new Chart(document.getElementById('chart-sesiones'), {
+    type: 'line',
+    data: {
+      labels: s.labels,
+      datasets: [{
+        label: 'Sesiones',
+        data: s.sesiones,
+        borderColor: '#003874',
+        backgroundColor: '#003874',
+        borderWidth: 2,
+        pointRadius: vista === 'semanal' ? 2 : 4,
+        pointHoverRadius: 5,
+        tension: 0.15,
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => ' ' + fmtInt(c.parsed.y) + ' sesiones' } } },
+      scales: {
+        x: ejeComun,
+        y: { ...ejeComun, ticks: { ...ejeComun.ticks, callback: v => fmtInt(v) } },
+      },
+    },
+  });
+
+  charts.canal = new Chart(document.getElementById('chart-canal'), {
+    data: {
+      labels: s.labels,
+      datasets: [
+        { type: 'bar', label: 'Directo', data: s.directo, backgroundColor: '#2a78d6', stack: 'canal' },
+        { type: 'bar', label: 'Orgánico', data: s.organico, backgroundColor: '#eb6834', stack: 'canal' },
+        { type: 'bar', label: 'Social', data: s.social, backgroundColor: '#1baf7a', stack: 'canal' },
+        { type: 'bar', label: 'Referral', data: s.referral, backgroundColor: '#eda100', stack: 'canal' },
+        { type: 'bar', label: 'Email', data: s.email, backgroundColor: '#e87ba4', stack: 'canal' },
+        { type: 'line', label: 'Engagement rate', data: s.engagement, borderColor: '#9f334e',
+          backgroundColor: '#9f334e', borderWidth: 2, pointRadius: vista === 'semanal' ? 1.5 : 3,
+          tension: 0.15, fill: false, yAxisID: 'y' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 9, font: { size: 10 } } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtPct(c.parsed.y)}` } },
+      },
+      scales: {
+        x: { ...ejeComun, stacked: true },
+        y: { ...ejeComun, stacked: true, min: 0, max: 1, ticks: { ...ejeComun.ticks, callback: v => fmtPct(v) } },
+      },
+    },
+  });
+
+  charts.dispositivo = new Chart(document.getElementById('chart-dispositivo'), {
+    type: 'bar',
+    data: {
+      labels: s.labels,
+      datasets: [
+        { label: 'Desktop', data: s.desktop, backgroundColor: '#003874', stack: 'disp' },
+        { label: 'Mobile', data: s.mobile, backgroundColor: '#9f334e', stack: 'disp' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 9, font: { size: 10 } } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtPct(c.parsed.y)}` } },
+      },
+      scales: {
+        x: { ...ejeComun, stacked: true },
+        y: { ...ejeComun, stacked: true, min: 0, max: 1, ticks: { ...ejeComun.ticks, callback: v => fmtPct(v) } },
+      },
+    },
+  });
+
+  charts.usuarios = new Chart(document.getElementById('chart-usuarios'), {
+    type: 'bar',
+    data: {
+      labels: s.labels,
+      datasets: [
+        { label: 'Nuevos', data: s.nuevos, backgroundColor: '#003874', stack: 'us' },
+        { label: 'Recurrentes', data: s.recurrentes, backgroundColor: '#9f334e', stack: 'us' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 9, font: { size: 10 } } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtInt(c.parsed.y)}` } },
+      },
+      scales: {
+        x: { ...ejeComun, stacked: true },
+        y: { ...ejeComun, stacked: true, ticks: { ...ejeComun.ticks, callback: v => fmtInt(v) } },
+      },
+    },
+  });
+}
+
+document.getElementById('view-toggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-view]');
+  if (!btn) return;
+  document.querySelectorAll('#view-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render(btn.dataset.view);
+});
+
+render('semanal');
+
+// ---------- Seccion 2: desempeño por nota (siempre semana actual) ----------
+
+document.getElementById('notas-subtitle').textContent =
+  `Semana del ${DATA.semana_mas_reciente_label} al ${DATA.semana_mas_reciente_fin_label} — ${DATA.notas_semana_actual.length} notas`;
+
+const maxVistas = Math.max(...DATA.notas_semana_actual.map(n => n.vistas), 1);
+const tbodyRanking = document.querySelector('#tabla-ranking tbody');
+DATA.notas_semana_actual.forEach((n, i) => {
+  const tr = document.createElement('tr');
+  const pct = Math.max(4, Math.round((n.vistas / maxVistas) * 100));
+  tr.innerHTML = `
+    <td class="num">${i + 1}</td>
+    <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
+    <td class="num"><div class="bar-cell"><div class="bar" style="width:${pct}px"></div><span class="val">${fmtInt(n.vistas)}</span></div></td>
+    <td class="num">${fmtTiempo(n.tiempo_lectura_promedio)}</td>
+  `;
+  tbodyRanking.appendChild(tr);
+});
+
+document.getElementById('alert-count').textContent = DATA.alertas_semana_actual.length;
+const alertWrap = document.getElementById('alert-table-wrap');
+if (DATA.alertas_semana_actual.length === 0) {
+  alertWrap.innerHTML = '<p class="empty-note">Ninguna nota de la semana cayó entre 0 y 15 vistas.</p>';
+} else {
+  const rows = DATA.alertas_semana_actual.map(n => `
+    <tr>
+      <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
+      <td class="num">${fmtInt(n.vistas)}</td>
+      <td class="num">${DATA.semana_mas_reciente_label}</td>
+    </tr>`).join('');
+  alertWrap.innerHTML = `
+    <div class="scroll-table" style="max-height:340px">
+      <table class="ranking">
+        <thead><tr><th>Nota</th><th style="text-align:right">Vistas</th><th style="text-align:right">Semana</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ---------- Seccion 3: landing pages (siempre semana actual) ----------
+
+document.getElementById('landing-subtitle').textContent =
+  `Semana del ${DATA.semana_mas_reciente_label} al ${DATA.semana_mas_reciente_fin_label} — ${DATA.landing_semana_actual.length} notas identificadas como landing page`;
+
+const tbodyLanding = document.querySelector('#tabla-landing tbody');
+if (DATA.landing_semana_actual.length === 0) {
+  tbodyLanding.innerHTML = '<tr><td colspan="4" class="empty-note">Sin datos de landing page para esta semana.</td></tr>';
+} else {
+  DATA.landing_semana_actual.forEach((n, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="num">${i + 1}</td>
+      <td class="titulo">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.titulo}</a>` : n.titulo}</td>
+      <td class="num">${fmtInt(n.sesiones_como_landing)}</td>
+      <td class="num">${fmtInt(n.vistas)}</td>
+    `;
+    tbodyLanding.appendChild(tr);
+  });
+}
+</script>
+</body>
+</html>

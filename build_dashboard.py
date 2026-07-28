@@ -63,6 +63,23 @@ def leer_notas_por_semana(conn):
     return por_semana
 
 
+def leer_tags_por_semana(conn):
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT semana_inicio, titulo, url, vistas,
+               tiempo_en_pagina_promedio, sesiones_como_landing
+        FROM metricas_tags
+    """)
+    por_semana = {}
+    for row in cur.fetchall():
+        semana_inicio = row[0]
+        por_semana.setdefault(semana_inicio, []).append({
+            "titulo": row[1], "url": row[2], "vistas": row[3],
+            "tiempo_en_pagina_promedio": row[4], "sesiones_como_landing": row[5],
+        })
+    return por_semana
+
+
 def mes_de_semana(fecha_inicio_str, fecha_fin_str):
     """Asigna la semana al mes calendario donde caen mas de sus 7 dias."""
     fi = datetime.strptime(fecha_inicio_str, "%Y-%m-%d")
@@ -173,6 +190,51 @@ def agregar_notas_por_mes(semanas, notas_por_semana, top_n=100):
     return resultado
 
 
+def agregar_tags_por_mes(semanas, tags_por_semana, top_n=100):
+    """
+    Igual que agregar_notas_por_mes pero para metricas_tags: agrega por
+    titulo (dedup), vistas sumadas, tiempo en pagina promedio ponderado
+    por vistas, sesiones_como_landing sumadas.
+    """
+    acumulados = {}
+    for fila in semanas:
+        anio, mes = mes_de_semana(fila["semana_inicio"], fila["semana_fin"])
+        clave = f"{anio:04d}-{mes:02d}"
+        bucket = acumulados.setdefault(clave, {})
+        for tag in tags_por_semana.get(fila["semana_inicio"], []):
+            titulo = tag["titulo"]
+            vistas = tag["vistas"] or 0
+            entrada = bucket.setdefault(titulo, {
+                "titulo": titulo, "url": tag["url"] or "",
+                "vistas": 0, "_suma_tiempo_ponderado": 0.0,
+                "sesiones_como_landing": 0.0,
+            })
+            entrada["vistas"] += vistas
+            entrada["_suma_tiempo_ponderado"] += (tag["tiempo_en_pagina_promedio"] or 0.0) * vistas
+            entrada["sesiones_como_landing"] += tag["sesiones_como_landing"] or 0
+            if not entrada["url"] and tag["url"]:
+                entrada["url"] = tag["url"]
+
+    resultado = {}
+    for clave, bucket in acumulados.items():
+        filas = []
+        for entrada in bucket.values():
+            tiempo = (
+                entrada["_suma_tiempo_ponderado"] / entrada["vistas"]
+                if entrada["vistas"] > 0 else 0.0
+            )
+            filas.append({
+                "titulo": entrada["titulo"],
+                "url": entrada["url"],
+                "vistas": entrada["vistas"],
+                "tiempo_en_pagina_promedio": tiempo,
+                "sesiones_como_landing": entrada["sesiones_como_landing"],
+            })
+        filas.sort(key=lambda f: f["vistas"], reverse=True)
+        resultado[clave] = filas[:top_n]
+    return resultado
+
+
 def formatear_semana_label(fecha_inicio_str):
     d = datetime.strptime(fecha_inicio_str, "%Y-%m-%d")
     return f"{d.day} {MESES_CORTO[d.month]}"
@@ -182,6 +244,7 @@ def preparar_datos():
     conn = sqlite3.connect(DB_PATH)
     semanas = leer_semanas(conn)
     notas_por_semana = leer_notas_por_semana(conn)
+    tags_por_semana = leer_tags_por_semana(conn)
     conn.close()
 
     for fila in semanas:
@@ -189,6 +252,7 @@ def preparar_datos():
 
     meses = agregar_mensual(semanas, notas_por_semana)
     notas_por_mes = agregar_notas_por_mes(semanas, notas_por_semana)
+    tags_por_mes = agregar_tags_por_mes(semanas, tags_por_semana)
 
     semana_mas_reciente = semanas[-1]["semana_inicio"]
     notas_semana_actual = sorted(
@@ -199,16 +263,22 @@ def preparar_datos():
         [n for n in notas_semana_actual if n["alerta_bajo_desempeno"]],
         key=lambda n: n["vistas"],
     )
+    tags_semana_actual = sorted(
+        tags_por_semana.get(semana_mas_reciente, []),
+        key=lambda t: t["vistas"], reverse=True,
+    )
 
     return {
         "semanas": semanas,
         "meses": meses,
         "notas_por_mes": notas_por_mes,
+        "tags_por_mes": tags_por_mes,
         "semana_mas_reciente": semana_mas_reciente,
         "semana_mas_reciente_label": formatear_semana_label(semana_mas_reciente),
         "semana_mas_reciente_fin_label": formatear_semana_label(semanas[-1]["semana_fin"]),
         "notas_semana_actual": notas_semana_actual,
         "alertas_semana_actual": alertas_semana_actual,
+        "tags_semana_actual": tags_semana_actual,
         "generado": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }
 

@@ -396,6 +396,41 @@
     </div>
   </section>
 
+  <section class="block">
+    <div class="section-head">
+      <div>
+        <h2>Temas y secciones</h2>
+        <p class="subtitle" id="tags-subtitle"></p>
+      </div>
+      <div class="view-toggle" id="tags-view-toggle">
+        <button data-view="semanal" class="active">Semanal</button>
+        <button data-view="mensual">Mensual</button>
+      </div>
+    </div>
+    <p class="subtitle" style="margin-top:-4px">Páginas de tag, sección o listado (no notas individuales) — identificadas porque no tienen fecha de publicación real. El "tiempo en página" no es tiempo de lectura de un artículo, es tiempo en una página de listado.</p>
+    <div class="mes-select-wrap" id="tags-mes-select-wrap">
+      <label for="tags-mes-select">Mes:</label>
+      <select id="tags-mes-select"></select>
+    </div>
+    <div class="scroll-table">
+      <table class="ranking" id="tabla-tags">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tema / sección</th>
+            <th class="sortable sort-active" style="text-align:right" data-sort="vistas">Vistas</th>
+            <th style="text-align:right">Tiempo en página</th>
+            <th class="sortable" style="text-align:right" data-sort="sesiones_como_landing">
+              Sesiones como landing
+              <span class="help-icon" tabindex="0">?<span class="tip">Cuántas sesiones empezaron en esta página, a diferencia de vistas totales, que cuenta toda carga de la página sin importar si fue la entrada a la sesión o no.</span></span>
+            </th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <footer class="foot">Generado automáticamente desde lid_metricas.db — reporte_lid_ga4.py</footer>
 </main>
 
@@ -686,6 +721,82 @@ if (DATA.alertas_semana_actual.length === 0) {
       <p class="empty-note" style="padding:6px 8px 0">* sin fecha de publicación real disponible — se muestra la semana del reporte</p>
     </div>`;
 }
+
+// ---------- Seccion "Temas y secciones" (toggle propio, independiente) ----------
+
+let tagsVista = 'semanal';
+let tagsSortKey = 'vistas';
+const tagsMesSelectWrap = document.getElementById('tags-mes-select-wrap');
+const tagsMesSelect = document.getElementById('tags-mes-select');
+
+DATA.meses.forEach(m => {
+  const opt = document.createElement('option');
+  opt.value = m.mes;
+  opt.textContent = m.mes_label_largo;
+  tagsMesSelect.appendChild(opt);
+});
+tagsMesSelect.value = DATA.meses[DATA.meses.length - 1].mes;
+
+function tagsFuente() {
+  if (tagsVista === 'semanal') {
+    return {
+      filas: DATA.tags_semana_actual,
+      resumen: `Semana del ${DATA.semana_mas_reciente_label} al ${DATA.semana_mas_reciente_fin_label} — ${DATA.tags_semana_actual.length} temas/secciones`,
+    };
+  }
+  const mesElegido = DATA.meses.find(m => m.mes === tagsMesSelect.value) || DATA.meses[DATA.meses.length - 1];
+  const filas = (DATA.tags_por_mes[mesElegido.mes] || []);
+  return {
+    filas,
+    resumen: `${mesElegido.mes_label_largo} — ${filas.length} temas/secciones (agregado de ${mesElegido.n_semanas} semana${mesElegido.n_semanas === 1 ? '' : 's'})`,
+  };
+}
+
+function renderTablaTags() {
+  const { filas, resumen } = tagsFuente();
+  document.getElementById('tags-subtitle').textContent = resumen;
+
+  const ordenadas = [...filas].sort((a, b) => (b[tagsSortKey] || 0) - (a[tagsSortKey] || 0));
+
+  document.querySelectorAll('#tabla-tags th.sortable').forEach(th => {
+    th.classList.toggle('sort-active', th.dataset.sort === tagsSortKey);
+  });
+
+  const tbody = document.querySelector('#tabla-tags tbody');
+  if (ordenadas.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-note">Sin temas/secciones para este período.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = ordenadas.map((t, i) => `
+    <tr>
+      <td class="num">${i + 1}</td>
+      <td class="titulo">${t.url ? `<a href="${t.url}" target="_blank" rel="noopener">${t.titulo}</a>` : t.titulo}</td>
+      <td class="num">${fmtInt(t.vistas)}</td>
+      <td class="num">${fmtTiempo(t.tiempo_en_pagina_promedio)}</td>
+      <td class="num">${fmtLanding(t.sesiones_como_landing)}</td>
+    </tr>`).join('');
+}
+
+document.querySelectorAll('#tabla-tags th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    tagsSortKey = th.dataset.sort;
+    renderTablaTags();
+  });
+});
+
+tagsMesSelect.addEventListener('change', renderTablaTags);
+
+document.getElementById('tags-view-toggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-view]');
+  if (!btn) return;
+  document.querySelectorAll('#tags-view-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  tagsVista = btn.dataset.view;
+  tagsMesSelectWrap.classList.toggle('visible', tagsVista === 'mensual');
+  renderTablaTags();
+});
+
+renderTablaTags();
 </script>
 </body>
 </html>

@@ -347,7 +347,9 @@
         <div class="canvas-wrap"><canvas id="chart-canal"></canvas></div>
       </div>
       <div class="chart-card">
-        <h3>Mobile vs. desktop</h3>
+        <h3>Mobile vs. desktop
+          <span class="help-icon" tabindex="0">?<span class="tip">Cada período muestra dos barras. <b>Sesiones con interacción</b> cuenta solo las visitas que mostraron actividad real (más de 10 segundos, más de una vista, o una conversión). <b>Sesiones totales</b> incluye todo el tráfico que llega al sitio, incluyendo visitas que entran y se van sin interactuar. Una diferencia grande entre ambas bases suele indicar tráfico automatizado o de baja calidad.</span></span>
+        </h3>
         <div class="canvas-wrap"><canvas id="chart-dispositivo"></canvas></div>
       </div>
       <div class="chart-card">
@@ -467,6 +469,8 @@ function seriesDe(vista) {
       email: DATA.semanas.map(s => s.pct_email),
       mobile: DATA.semanas.map(s => s.pct_mobile),
       desktop: DATA.semanas.map(s => s.pct_desktop),
+      mobileTotal: DATA.semanas.map(s => s.pct_mobile_total),
+      desktopTotal: DATA.semanas.map(s => s.pct_desktop_total),
       nuevos: DATA.semanas.map(s => s.usuarios_nuevos),
       recurrentes: DATA.semanas.map(s => s.usuarios_recurrentes),
     };
@@ -482,6 +486,8 @@ function seriesDe(vista) {
     email: DATA.meses.map(m => m.pct_email),
     mobile: DATA.meses.map(m => m.pct_mobile),
     desktop: DATA.meses.map(m => m.pct_desktop),
+    mobileTotal: DATA.meses.map(m => m.pct_mobile_total),
+    desktopTotal: DATA.meses.map(m => m.pct_desktop_total),
     nuevos: DATA.meses.map(m => m.usuarios_nuevos),
     recurrentes: DATA.meses.map(m => m.usuarios_recurrentes),
   };
@@ -565,9 +571,15 @@ function renderSaludSitio(vista) {
     type: 'bar',
     data: {
       labels: s.labels,
+      // Dos barras por período: la de la izquierda sobre sesiones con
+      // interacción (la base histórica), la de la derecha sobre sesiones
+      // totales. La brecha entre ambas es el tráfico que entra y se va
+      // sin actividad, concentrado en desktop.
       datasets: [
-        { label: 'Desktop', data: s.desktop, backgroundColor: '#003874', stack: 'disp' },
-        { label: 'Mobile', data: s.mobile, backgroundColor: '#9f334e', stack: 'disp' },
+        { label: 'Desktop · sesiones con interacción', data: s.desktop, backgroundColor: '#003874', stack: 'interaccion' },
+        { label: 'Mobile · sesiones con interacción', data: s.mobile, backgroundColor: '#9f334e', stack: 'interaccion' },
+        { label: 'Desktop · sesiones totales', data: s.desktopTotal, backgroundColor: '#7ba0c9', stack: 'totales' },
+        { label: 'Mobile · sesiones totales', data: s.mobileTotal, backgroundColor: '#cf94a3', stack: 'totales' },
       ],
     },
     options: {

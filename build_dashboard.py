@@ -26,6 +26,10 @@ MESES_CORTO = {
 CAMPOS_PONDERADOS = [
     "engagement_rate", "pct_directo", "pct_organico", "pct_social",
     "pct_referral", "pct_email", "pct_mobile", "pct_desktop",
+    # Desglose de dispositivo sobre sesiones totales (las columnas de
+    # arriba son sobre sesiones con interaccion). Ver el docstring de
+    # ga4_api_lid.extraer_dispositivo.
+    "pct_mobile_total", "pct_desktop_total",
 ]
 
 
@@ -34,7 +38,8 @@ def leer_semanas(conn):
     cur.execute("""
         SELECT semana_inicio, semana_fin, sesiones_totales,
                pct_directo, pct_organico, pct_social, pct_referral, pct_email,
-               pct_mobile, pct_desktop, engagement_rate, paginas_por_sesion,
+               pct_mobile, pct_desktop, pct_mobile_total, pct_desktop_total,
+               engagement_rate, paginas_por_sesion,
                usuarios_totales, usuarios_nuevos, usuarios_recurrentes
         FROM metricas_sitio
         ORDER BY semana_inicio

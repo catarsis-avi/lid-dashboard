@@ -334,8 +334,8 @@
     <p class="subtitle" id="salud-subtitle"></p>
     <div class="chart-grid">
       <div class="chart-card">
-        <h3>Sesiones totales
-          <span class="help-icon" tabindex="0">?<span class="tip">Un período de actividad continua de un visitante en el sitio. Empieza cuando entra y termina tras 30 minutos de inactividad, un cambio de fuente de tráfico, o al cruzar la medianoche. Una persona puede ver varias notas en la misma sesión.</span></span>
+        <h3>Sesiones
+          <span class="help-icon" tabindex="0">?<span class="tip">Una sesión es un período de actividad continua de un visitante: empieza cuando entra y termina tras 30 minutos de inactividad, un cambio de fuente de tráfico, o al cruzar la medianoche. <b>Sesiones totales</b> cuenta todo el tráfico que llega al sitio. <b>Sesiones con interacción</b> cuenta solo las visitas con actividad real (más de 10 segundos, más de una vista, o una conversión). Una brecha que se ensancha en el tiempo indica tráfico automatizado o de baja calidad creciente.</span></span>
         </h3>
         <div class="canvas-wrap"><canvas id="chart-sesiones"></canvas></div>
       </div>
@@ -461,6 +461,7 @@ function seriesDe(vista) {
     return {
       labels: DATA.semanas.map(s => s.semana_label),
       sesiones: DATA.semanas.map(s => s.sesiones_totales),
+      sesionesInteraccion: DATA.semanas.map(s => s.sesiones_con_interaccion),
       engagement: DATA.semanas.map(s => s.engagement_rate),
       directo: DATA.semanas.map(s => s.pct_directo),
       organico: DATA.semanas.map(s => s.pct_organico),
@@ -478,6 +479,7 @@ function seriesDe(vista) {
   return {
     labels: DATA.meses.map(m => m.mes_label),
     sesiones: DATA.meses.map(m => m.sesiones_totales),
+    sesionesInteraccion: DATA.meses.map(m => m.sesiones_con_interaccion),
     engagement: DATA.meses.map(m => m.engagement_rate),
     directo: DATA.meses.map(m => m.pct_directo),
     organico: DATA.meses.map(m => m.pct_organico),
@@ -515,23 +517,39 @@ function renderSaludSitio(vista) {
     type: 'line',
     data: {
       labels: s.labels,
-      datasets: [{
-        label: 'Sesiones',
-        data: s.sesiones,
-        borderColor: '#003874',
-        backgroundColor: '#003874',
-        borderWidth: 2,
-        pointRadius: vista === 'semanal' ? 2 : 4,
-        pointHoverRadius: 5,
-        tension: 0.15,
-        fill: false,
-      }]
+      // Las dos series juntas: la brecha entre ambas es el trafico que
+      // llega y se va sin actividad real.
+      datasets: [
+        {
+          label: 'Sesiones totales',
+          data: s.sesiones,
+          borderColor: '#003874',
+          backgroundColor: '#003874',
+          borderWidth: 2,
+          pointRadius: vista === 'semanal' ? 2 : 4,
+          pointHoverRadius: 5,
+          tension: 0.15,
+          fill: false,
+        },
+        {
+          label: 'Sesiones con interacción',
+          data: s.sesionesInteraccion,
+          borderColor: '#9f334e',
+          backgroundColor: '#9f334e',
+          borderWidth: 2,
+          pointRadius: vista === 'semanal' ? 2 : 4,
+          pointHoverRadius: 5,
+          tension: 0.15,
+          fill: false,
+        },
+      ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false },
-        tooltip: { callbacks: { label: c => ' ' + fmtInt(c.parsed.y) + ' sesiones' } } },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 9, font: { size: 10 } } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtInt(c.parsed.y)}` } } },
       scales: {
         x: ejeComun,
         y: { ...ejeComun, ticks: { ...ejeComun.ticks, callback: v => fmtInt(v) } },

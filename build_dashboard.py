@@ -37,6 +37,7 @@ def leer_semanas(conn):
     cur = conn.cursor()
     cur.execute("""
         SELECT semana_inicio, semana_fin, sesiones_totales,
+               sesiones_con_interaccion,
                pct_directo, pct_organico, pct_social, pct_referral, pct_email,
                pct_mobile, pct_desktop, pct_mobile_total, pct_desktop_total,
                engagement_rate, paginas_por_sesion,
@@ -103,7 +104,8 @@ def agregar_mensual(semanas, notas_por_semana):
         clave = f"{anio:04d}-{mes:02d}"
         m = meses.setdefault(clave, {
             "anio": anio, "mes": mes,
-            "sesiones_totales": 0, "usuarios_totales": 0,
+            "sesiones_totales": 0, "sesiones_con_interaccion": 0,
+            "usuarios_totales": 0,
             "usuarios_nuevos": 0, "usuarios_recurrentes": 0,
             "_sumas": {c: 0.0 for c in CAMPOS_PONDERADOS},
             "titulos_unicos": set(), "titulos_alerta": set(),
@@ -112,6 +114,8 @@ def agregar_mensual(semanas, notas_por_semana):
         m["semanas"].append(fila["semana_inicio"])
         s = fila["sesiones_totales"] or 0
         m["sesiones_totales"] += s
+        # Se suma igual que sesiones_totales (es un conteo, no un ratio)
+        m["sesiones_con_interaccion"] += fila["sesiones_con_interaccion"] or 0
         m["usuarios_totales"] += fila["usuarios_totales"] or 0
         m["usuarios_nuevos"] += fila["usuarios_nuevos"] or 0
         m["usuarios_recurrentes"] += fila["usuarios_recurrentes"] or 0
@@ -134,6 +138,7 @@ def agregar_mensual(semanas, notas_por_semana):
             "mes_label": f"{MESES_CORTO[m['mes']]} {m['anio']}",
             "mes_label_largo": f"{MESES_ES[m['mes']]} de {m['anio']}",
             "sesiones_totales": m["sesiones_totales"],
+            "sesiones_con_interaccion": m["sesiones_con_interaccion"],
             "usuarios_totales": m["usuarios_totales"],
             "usuarios_nuevos": m["usuarios_nuevos"],
             "usuarios_recurrentes": m["usuarios_recurrentes"],
